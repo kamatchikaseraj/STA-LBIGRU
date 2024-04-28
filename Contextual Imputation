@@ -1,0 +1,45 @@
+from sklearn.ensemble import RandomForestRegressor, RandomForestClassifier
+import numpy as np
+
+def contextual_adaptive_imputation(Ddataset, Vnumeric, Vcategorical):
+    Dimputed = Ddataset.copy()  # Copy the dataset for imputation
+    
+    # Define the context variables
+    context_variables = ['userID', 'time', 'activity_type']
+    
+    for V in Ddataset.columns:
+        if V in Vnumeric and Dimputed[V].isnull().any():
+            # Numeric variable with missing values
+            Xmissing = Dimputed.dropna(subset=[V])
+            Ycontext = Xmissing[context_variables]
+            Xpredictors = Xmissing.drop(columns=[V] + context_variables)
+            Fnumeric = RandomForestRegressor()  # Random Forest for regression
+            
+            for t in range(10):  # 10 trees in the Random Forest
+                Xt = Xmissing.drop(columns=[V] + context_variables)
+                Yt = Xmissing[V]
+                fit = Fnumeric.fit(Xt, Yt)
+                Fnumeric = fit.predict(Xmissing.drop(columns=[V] + context_variables))
+                Yimputed_numeric = Fnumeric.predict(Xpredictors)
+            
+            # Replace missing values with imputed values
+            Dimputed.loc[Dimputed[V].isnull(), V] = Yimputed_numeric
+        
+        elif V in Vcategorical and Dimputed[V].isnull().any():
+            # Categorical variable with missing values
+            Xmissing = Dimputed.dropna(subset=[V])
+            Ycontext = Xmissing[context_variables]
+            Xpredictors = Xmissing.drop(columns=[V] + context_variables)
+            Lcategorical = RandomForestClassifier()  # Random Forest for classification
+            
+            for t in range(10):  # 10 trees in the Random Forest
+                Xt = Xmissing.drop(columns=[V] + context_variables)
+                Yt = Xmissing[V]
+                fit = Lcategorical.fit(Xt, Yt)
+                Lcategorical = fit.predict(Xmissing.drop(columns=[V] + context_variables))
+                Yimputed_categorical = np.argmax(Lcategorical.predict_proba(Xpredictors), axis=1)
+            
+            # Replace missing values with imputed values
+            Dimputed.loc[Dimputed[V].isnull(), V] = Yimputed_categorical
+        
+    return Dimputed
