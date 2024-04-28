@@ -1,0 +1,82 @@
+import tensorflow as tf
+from tensorflow.keras.layers import Layer
+
+class SparseTemporalAttention(Layer):
+    def __init__(self):
+        super(SparseTemporalAttention, self).__init__()
+
+    def build(self, input_shape):
+        self.attention_weights = self.add_weight(name='attention_weights',
+                                                  shape=(input_shape[1],),
+                                                  initializer='ones',
+                                                  trainable=True)
+        super(SparseTemporalAttention, self).build(input_shape)
+
+    def call(self, inputs):
+        # Calculate the weighted sum of inputs based on attention weights
+        weighted_sum = tf.reduce_sum(inputs * tf.expand_dims(self.attention_weights, axis=0), axis=1)
+        return weighted_sum
+
+    def compute_output_shape(self, input_shape):
+        return (input_shape[0], input_shape[2])
+
+# Example usage
+input_shape = (10, 5)  # Assume input shape is (sequence_length, feature_dim)
+inputs = tf.keras.layers.Input(shape=input_shape)
+attention_layer = SparseTemporalAttention()(inputs)
+model = tf.keras.models.Model(inputs=inputs, outputs=attention_layer)
+
+# Test the layer
+import numpy as np
+sequence_length = 10
+feature_dim = 5
+inputs_data = np.random.rand(1, sequence_length, feature_dim)
+output = model.predict(inputs_data)
+print("Input shape:", inputs_data.shape)
+print("Output shape:", output.shape)
+
+
+from tensorflow.keras import initializers, regularizers, constraints
+
+class BiLightGRU(Layer):
+    def __init__(self, units, activation='tanh', recurrent_activation='sigmoid', 
+                 use_bias=True, kernel_initializer='glorot_uniform', 
+                 recurrent_initializer='orthogonal', bias_initializer='zeros',
+                 kernel_regularizer=None, recurrent_regularizer=None, bias_regularizer=None,
+                 kernel_constraint=None, recurrent_constraint=None, bias_constraint=None,
+                 dropout=0.0, recurrent_dropout=0.0, **kwargs):
+        super(BiLightGRU, self).__init__(**kwargs)
+        self.forward_gru = tf.keras.layers.GRU(units=units, activation=activation, recurrent_activation=recurrent_activation,
+                                                use_bias=use_bias, kernel_initializer=kernel_initializer,
+                                                recurrent_initializer=recurrent_initializer, bias_initializer=bias_initializer,
+                                                kernel_regularizer=kernel_regularizer, recurrent_regularizer=recurrent_regularizer,
+                                                bias_regularizer=bias_regularizer, kernel_constraint=kernel_constraint,
+                                                recurrent_constraint=recurrent_constraint, bias_constraint=bias_constraint,
+                                                dropout=dropout, recurrent_dropout=recurrent_dropout, go_backwards=False)
+        
+        self.backward_gru = tf.keras.layers.GRU(units=units, activation=activation, recurrent_activation=recurrent_activation,
+                                                 use_bias=use_bias, kernel_initializer=kernel_initializer,
+                                                 recurrent_initializer=recurrent_initializer, bias_initializer=bias_initializer,
+                                                 kernel_regularizer=kernel_regularizer, recurrent_regularizer=recurrent_regularizer,
+                                                 bias_regularizer=bias_regularizer, kernel_constraint=kernel_constraint,
+                                                 recurrent_constraint=recurrent_constraint, bias_constraint=bias_constraint,
+                                                 dropout=dropout, recurrent_dropout=recurrent_dropout, go_backwards=True)
+    
+    def call(self, inputs):
+        forward_output = self.forward_gru(inputs)
+        backward_output = self.backward_gru(inputs)
+        output = tf.keras.layers.Concatenate()([forward_output, backward_output])
+        return output
+
+    def get_config(self):
+        config = super(BiLightGRU, self).get_config()
+        return config
+
+# Example usage
+input_shape = (10, 5)  # Assume input shape is (sequence_length, feature_dim)
+inputs = tf.keras.layers.Input(shape=input_shape)
+bi_lightgru_layer = BiLightGRU(units=64)(inputs)
+output_layer = Dense(1, activation='prelu')(bi_lightgru_layer)
+model = tf.keras.models.Model(inputs=inputs, outputs=output_layer)
+
+
