@@ -1,0 +1,42 @@
+from sklearn.feature_selection import SelectKBest, mutual_info_classif
+from sklearn.model_selection import train_test_split
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.metrics import accuracy_score
+import numpy as np
+
+def feature_extraction(X, y, k=10):
+    # Filter method: SelectKBest with Mutual Information
+    selector = SelectKBest(mutual_info_classif, k=k)
+    X_new = selector.fit_transform(X, y)
+
+    # Wrapper method: Bidirectional Elimination
+    feature_indices = np.arange(X_new.shape[1])
+    selected_features = set(feature_indices)
+
+    clf = RandomForestClassifier()
+    clf.fit(X_new, y)
+    baseline_score = accuracy_score(y, clf.predict(X_new))
+
+    improvement = True
+    while improvement:
+        improvement = False
+        for feature_idx in list(selected_features):
+            removed_features = selected_features - {feature_idx}
+            X_subset = X_new[:, list(removed_features)]
+            clf.fit(X_subset, y)
+            new_score = accuracy_score(y, clf.predict(X_subset))
+            if new_score >= baseline_score:
+                selected_features = removed_features
+                baseline_score = new_score
+                improvement = True
+                break
+
+    return X[:, list(selected_features)]
+
+# Example usage
+X = np.random.rand(100, 20)  # Example feature matrix
+y = np.random.randint(0, 2, 100)  # Example target vector
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+X_selected = feature_extraction(X_train, y_train, k=10)
+print("Selected features shape:", X_selected.shape)
