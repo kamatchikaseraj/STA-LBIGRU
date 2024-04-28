@@ -1,0 +1,41 @@
+def stratified_division_without_balancing(D, P):
+    # Input:
+    # D: Imputed Dataset with instances labeled as either malicious M or non-malicious NM.
+    # P: Proportion of data to be included in the training set (e.g., 80% training, 20% testing).
+
+    # Output:
+    # Dtrain: Training dataset.
+    # Dtest: Testing dataset.
+
+    # Initialize sets for minority and majority class instances
+    DM = [instance for instance in D if instance['label'] == 'M']
+    DNM = [instance for instance in D if instance['label'] == 'NM']
+
+    # Initialize empty sets for training and testing datasets
+    Dtrain = []
+    Dtest = []
+
+    # Calculate the size of the training set for each class
+    NtrainM = int(P * len(DM))
+    NtrainNM = int(P * len(DNM))
+
+    # Add instances of the minority class to the training and testing sets
+    for instance in DM:
+        if len(Dtrain) < NtrainM:
+            Dtrain.append(instance)
+        else:
+            Dtest.append(instance)
+
+    # Add instances of the majority class to the training and testing sets
+    for instance in DNM:
+        if len(Dtrain) < NtrainNM:
+            Dtrain.append(instance)
+        else:
+            Dtest.append(instance)
+
+    return Dtrain, Dtest
+
+# Example usage:
+# D is your dataset
+# P is the proportion of data to be included in the training set
+# Dtrain, Dtest = stratified_division_without_balancing(D, P)
